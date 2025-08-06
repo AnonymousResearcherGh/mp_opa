@@ -1,0 +1,51 @@
+name: Deploy pages
+
+on:
+  push:
+    branches: master
+
+permissions:  
+  contents: write
+
+jobs:
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        working-directory: compiler
+        run: |
+          # Remove software that the GitHub Actions image adds to base Ubuntu,
+          # to make CI errors easier to debug locally.
+          sudo rm -rf /usr/local
+
+          sudo apt-get update
+
+          # Install MOTION dependencies
+          sudo apt-get -y install build-essential make git cmake libssl-dev libboost-program-options-dev
+
+          # Install MP-SPDZ dependencies
+          sudo apt-get -y install automake build-essential clang cmake git libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 texinfo yasm
+
+          sudo apt-get -y install graphviz
+          sudo apt-get install -y libboost-dev libboost-program-options-dev libboost-filesystem-dev libboost-iostreams-dev libboost-thread-dev
+
+
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+          sudo bash -c "cd ../backend_submodules && ./change_registy_boost.sh"
+
+      - name: Build results markdown
+        run: ./compiler/make_results_markdown.py static
+      - name: Push to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: static
